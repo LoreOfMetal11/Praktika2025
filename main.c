@@ -8,6 +8,11 @@
 const char* default_filename = "Array.txt";
 const char* sorted_filename = "SortedArray.txt";
 
+typedef struct {
+    double time_spent;  // время прогона, до миллионых у нас
+    int swapCount;      // количество перестановок, добавили
+} SortResult;
+
 int readArrayFromFile(const char* filename, int** array, int* size) {
     FILE* file = fopen(filename, "r");
     if (file == NULL) {
@@ -59,13 +64,16 @@ void RecordSortedArray(const char* filename, int* array, int size) {
     }
 
     fclose(file);
-    printf("Массив успешно записан в файл %s\n", sorted_filename);
+    printf("Массив успешно записан в файл %s\n", filename);
 }
 
-void bubbleSort(int* arr, int size, int method) {
+SortResult bubbleSort(int* arr, int size, int method) {
     LARGE_INTEGER frequency, start, end;
     QueryPerformanceFrequency(&frequency);
     QueryPerformanceCounter(&start);
+
+    SortResult result = { 0 }; // илья, тут структуры, посмотри пожалуйста. мы сделали 
+    result.swapCount = 0;    
 
     for (int i = 0; i < size - 1; i++) {
         for (int j = 0; j < size - i - 1; j++) {
@@ -74,6 +82,7 @@ void bubbleSort(int* arr, int size, int method) {
                     int temp = arr[j];
                     arr[j] = arr[j + 1];
                     arr[j + 1] = temp;
+                    result.swapCount++; 
                 }
             }
             else if (method == 1) {
@@ -81,19 +90,16 @@ void bubbleSort(int* arr, int size, int method) {
                     int temp = arr[j];
                     arr[j] = arr[j + 1];
                     arr[j + 1] = temp;
+                    result.swapCount++; 
                 }
             }
         }
     }
 
     QueryPerformanceCounter(&end);
-    double time_spent = (double)(end.QuadPart - start.QuadPart) / frequency.QuadPart;
+    result.time_spent = (double)(end.QuadPart - start.QuadPart) / frequency.QuadPart;
 
-    printf("Отсортированный массив:\n");
-    for (int i = 0; i < size; i++) {
-        printf("%d ", arr[i]);
-    }
-    printf("\nВремя выполнения: %.6f секунд\n", time_spent);
+    return result; 
 }
 
 int MakeArrayFile(int min, int max, int size, const char* filename) {
@@ -115,10 +121,12 @@ int MakeArrayFile(int min, int max, int size, const char* filename) {
     srand(time(NULL));
     for (int i = 0; i < size; i++) {
         int num = rand() % (max - min + 1) + min;
+        printf("%d ", num);
         fprintf(file, "%d ", num);
     }
 
     fclose(file);
+    printf("\n");
     printf("Файл %s успешно создан.\n", filename);
     return 1;
 }
@@ -144,6 +152,7 @@ int OwnArray(const char* filename) {
                 fclose(file);
                 printf("Файл %s успешно создан.\n", filename);
                 getchar();
+                system("cls");
                 return 1;
             }
 
@@ -161,16 +170,14 @@ int OwnArray(const char* filename) {
 }
 
 int checkForExtraChars() {
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF);
-    return (c != '\n');
+    int c = getchar();
+    return (c != '\n' && c != EOF);
 }
 
 int main() {
-    // Устанавливаем кодовую страницу UTF-8 для ввода и вывода в консоли
-    SetConsoleCP(65001);
-    SetConsoleOutputCP(65001);
-
+    SetConsoleCP(1251);  // UTF-8 а то у денисыча не отображаются символы кириллицы
+    SetConsoleOutputCP(1251);
+    system("cls");
     srand(time(NULL));
 
     char current_filename[100] = "Array.txt";
@@ -189,23 +196,20 @@ int main() {
         int choice;
         if (scanf_s("%d", &choice) != 1) {
             printf("Ошибка ввода. Пожалуйста, введите число.\n");
-            checkForExtraChars();
+            while (getchar() != '\n');
             continue;
         }
-        checkForExtraChars();
 
         switch (choice) {
         case 1: {
-            printf("Введите имя файла (по умолчанию %s): ", default_filename);
+            while (getchar() != '\n'); 
+            printf("Введите имя файла (по умолчанию %s): ", current_filename);
             char filename_buffer[100];
             fgets(filename_buffer, sizeof(filename_buffer), stdin);
             filename_buffer[strcspn(filename_buffer, "\n")] = '\0';
 
             if (strlen(filename_buffer) > 0) {
                 strcpy_s(current_filename, sizeof(current_filename), filename_buffer);
-            }
-            else {
-                strcpy_s(current_filename, sizeof(current_filename), default_filename);
             }
 
             if (OwnArray(current_filename)) {
@@ -214,25 +218,28 @@ int main() {
                     printf("Массив успешно загружен. Размер: %d\n", size);
                 }
             }
+
+            printf("Нажмите Enter чтобы продолжить.\n");
+            getchar();
+            system("cls");
             break;
         }
 
         case 2: {
             printf("Введите размер массива: ");
-            if (scanf_s("%d", &size) != 1 || size <= 0) {
+            if (scanf_s("%d", &size) != 1 || size <= 0 || checkForExtraChars()) {
                 printf("Неверный размер массива.\n");
-                checkForExtraChars();
+                while (getchar() != '\n');
                 continue;
             }
 
             int min, max;
             printf("Введите диапазон (min max): ");
-            if (scanf_s("%d %d", &min, &max) != 2 || min >= max) {
+            if (scanf_s("%d %d", &min, &max) != 2 || min >= max || checkForExtraChars()) {
                 printf("Неверный диапазон.\n");
-                checkForExtraChars();
+                while (getchar() != '\n');
                 continue;
             }
-            checkForExtraChars();
 
             if (MakeArrayFile(min, max, size, current_filename)) {
                 if (current_array) free(current_array);
@@ -247,6 +254,8 @@ int main() {
         }
 
         case 3: {
+            while (getchar() != '\n');  
+
             printf("Введите имя файла: ");
             char filename_buffer[100];
             fgets(filename_buffer, sizeof(filename_buffer), stdin);
@@ -271,14 +280,21 @@ int main() {
 
             printf("Тип сортировки:\n1. По убыванию\n2. По возрастанию\nВыберите: ");
             int method;
-            if (scanf_s("%d", &method) != 1 || (method != 1 && method != 2)) {
+            if (scanf_s("%d", &method) != 1 || (method != 1 && method != 2) || checkForExtraChars()) {
                 printf("Неверный выбор.\n");
-                checkForExtraChars();
+                while (getchar() != '\n');
                 continue;
             }
-            checkForExtraChars();
 
-            bubbleSort(current_array, size, method);
+            SortResult sortResult = bubbleSort(current_array, size, method);
+
+            printf("Отсортированный массив:\n");
+            for (int i = 0; i < size; i++) {
+                printf("%d ", current_array[i]);
+            }
+            printf("\nВремя выполнения: %.6f секунд\n", sortResult.time_spent);
+            printf("Количество перестановок: %d\n", sortResult.swapCount);
+
             RecordSortedArray(sorted_filename, current_array, size);
             printf("Нажмите Enter чтобы продолжить.\n");
             getchar();
@@ -287,7 +303,8 @@ int main() {
         }
 
         case 5:
-            printf("\n\n==========================\nРабота программы завершена.\nЖелаем хорошего дня.\n==========================\n\n");
+            system("cls");
+            printf("\n\n\n\n==========================\nРабота программы завершена.\nЖелаем хорошего дня.\n==========================\n\n\n\n"); // желаем хорошего дня, чтобы нам поставили топовую оценочку -денис, ярик
             if (current_array) free(current_array);
             return 0;
 
